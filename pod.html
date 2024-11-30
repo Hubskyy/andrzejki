@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>łubudubu</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <style>
+    body {
+      margin: 0;
+      overflow: hidden;
+      background-color: #e0e0e0; /* Jasne tło */
+    }
+    canvas {
+      display: block;
+    }
+    #overlay {
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      color: white;
+      background: rgba(0, 0, 0, 0.7);
+      padding: 10px;
+      border-radius: 5px;
+      font-family: Arial, sans-serif;
+      opacity: 0;
+      transition: opacity 1s ease-in-out;
+    }
+    #fortuneText {
+      position: absolute;
+      color: white;
+      font-size: 24px;
+      font-family: Arial, sans-serif;
+      background: rgba(0, 0, 0, 0.5);
+      padding: 10px;
+      border-radius: 5px;
+      opacity: 0;
+      transition: opacity 1s ease-in-out;
+    }
+    #clickPrompt {
+      position: absolute;
+      top: 50px;  /* Przesuwamy nieco w dół */
+      left: 50%;
+      transform: translateX(-50%); /* Wyśrodkowanie */
+      color: white;
+      font-size: 24px;
+      background: rgba(0, 0, 0, 0.7);
+      padding: 10px;
+      border-radius: 5px;
+      font-family: Arial, sans-serif;
+      opacity: 1;
+      transition: opacity 1s ease-in-out;
+    }
+  </style>
+  
+</head>
+<body>
+  <div id="overlay">Kliknij w wosk, aby zobaczyć wróżbę!</div>
+  <div id="fortuneText"></div>
+  <div id="clickPrompt">Kliknij w klucz po wróżbę!</div> <!-- Nowy tekst nad wróżbą -->
+  <script>
+    // Ustawienia sceny
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    const renderer = new THREE.WebGLRenderer();
+    // Zmień tło w Three.js na jednolity kolor
+    scene.background = new THREE.Color(0x2c2b2b); // Ciemne tło
+
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    document.body.appendChild(renderer.domElement);
+
+    // Światło otoczenia i dynamiczne światło punktowe
+    const ambientLight = new THREE.AmbientLight(0xaaaaaa, 1.5);
+    scene.add(ambientLight);
+    const pointLight = new THREE.PointLight(0xffd700, 1.8, 100);
+    pointLight.position.set(10, 10, 10);
+    scene.add(pointLight);
+
+    // Model klucza
+    const keyGeometry = new THREE.TorusGeometry(0.5, 0.2, 16, 100);
+    const keyMaterial = new THREE.MeshStandardMaterial({ color: 0x999999, metalness: 0.8, roughness: 0.4 });
+    const key = new THREE.Mesh(keyGeometry, keyMaterial);
+    key.rotation.x = Math.PI / 2;
+    key.position.y = 3;
+    scene.add(key);
+
+    // Wosk formowany pod kluczem
+    let waxShape = new THREE.Group();
+    scene.add(waxShape);
+
+    function pourWax() {
+      const waxMaterial = new THREE.MeshPhongMaterial({ color: 0xf5deb3, shininess: 100 });
+      const waxGeometry = new THREE.CylinderGeometry(0.1, 0.1, 0.5, 16);
+      const waxDrop = new THREE.Mesh(waxGeometry, waxMaterial);
+      waxDrop.position.set(0, 2.8, 0);
+      waxShape.add(waxDrop);
+
+      const interval = setInterval(() => {
+        waxDrop.position.y -= 0.1;
+        if (waxDrop.position.y <= -0.5) {
+          clearInterval(interval);
+          waxDrop.position.y = -0.5;
+        }
+      }, 50);
+    }
+
+    // Przypisanie kształtów do wróżb
+    const shapesWithFortunes = [
+      { geometry: new THREE.ConeGeometry(0.7, 1.5, 16), fortune: "odnalezienie siebie - ,,w końcu odnajdziesz siebie, i będziesz czuć się w 100% sobą, i będziesz szczęśliwa''" },
+      { geometry: new THREE.DodecahedronGeometry(1), fortune: "Miłość - ,,znajdziesz niedługo miłość, w której będziesz szczęsliwa''" },
+      { geometry: new THREE.TorusKnotGeometry(0.8, 0.2, 100, 16), fortune: "mądrość - ,,zdasz najbliższe egzaminy najlepiej jak to tylko możliwe''" },
+      { geometry: new THREE.TetrahedronGeometry(1, 15, 0.2, 100), fortune: "poezja - ,,dzisiaj w nocy będzie ciemno''" },
+      { geometry: new THREE.TorusGeometry(1, 0.4, 16, 100), fortune: "Sukces - ,,dostaniesz się na wymarzoną uczelnie, dostaniesz się do wymarzonej pracy''" },
+    ];
+
+    function randomizeWaxShape() {
+      waxShape.clear();
+      const randomIndex = Math.floor(Math.random() * shapesWithFortunes.length);
+      const { geometry, fortune } = shapesWithFortunes[randomIndex];
+
+      const wax = new THREE.Mesh(geometry, new THREE.MeshPhongMaterial({ color: 0xf5deb3 }));
+      wax.position.y = -0.5;
+      waxShape.add(wax);
+
+      const fortuneText = document.getElementById("fortuneText");
+      fortuneText.innerText = fortune;
+
+      // Przekształcenie pozycji 3D na 2D
+      const vector = new THREE.Vector3();
+      wax.getWorldPosition(vector);
+      vector.project(camera);
+
+      // Przekształcenie 3D na współrzędne 2D
+      const x = (vector.x * 0.5 + 0.5) * window.innerWidth;
+      const y = ( - vector.y * 0.5 + 0.5) * window.innerHeight;
+
+      fortuneText.style.left = `${x}px`; // Pozycja X
+      fortuneText.style.top = `${y + 50}px`; // Pozycja Y (dodajemy 50px dla lepszej widoczności)
+
+      // Fade-in effect for fortune
+      fortuneText.style.opacity = 1;
+
+      // Fade-out effect after 5 seconds
+      setTimeout(() => {
+        fortuneText.style.opacity = 0;
+      }, 5000);
+    }
+
+    // Inicjacja animacji lania wosku po kliknięciu
+    let pouring = false;
+    document.addEventListener("click", () => {
+      if (!pouring) {
+        pouring = true;
+        for (let i = 0; i < 10; i++) {
+          setTimeout(pourWax, i * 200); // Strumień wosku co 200ms
+        }
+        setTimeout(() => {
+          pouring = false;
+          randomizeWaxShape();
+        }, 3000);
+      }
+    });
+
+    // Animacja sceny
+    function animate() {
+      requestAnimationFrame(animate);
+      renderer.render(scene, camera);
+    }
+    camera.position.z = 6;
+    animate();
+  </script>
+</body>
+</html>
